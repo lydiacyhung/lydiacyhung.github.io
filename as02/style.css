@@ -1,97 +1,87 @@
-
 html, body {
     margin: 0;
     padding: 0;
 }
 
-#wrapper{
-    width:800px;
-    margin:0 auto;
+#wrapper {
+    width: 800px;
+    margin: 0 auto;
 }
 
-
-#banner{
+#banner {
     background-color: rgba(0, 0, 0, 0.5);
-    width:800px;
-    height:200px;
-    clear:both;
-    position:fixed;
-    top:0px;
-    /* left:0px; */
+    width: 800px;
+    height: 200px;
+    clear: both;
+    /* 如果要跟著畫面捲動，請註解掉固定定位 */
+    /* position: fixed; top: 0; */
 }
 
-#banner-placeholder{
-    height:200px;
+#banner-placeholder {
+    display: none; /* 如果 banner 不是 fixed，預留空間的區塊就可以隱藏或刪除 */
 }
 
 .container {
-    overflow: hidden; /* Clear floats */
-  }
-
-.text-container{
-    padding:5px;
+    overflow: hidden; /* 清除子元素浮動（float）影響 */
 }
 
-#nav {
-    background-color:greenyellow;
-    width:100px;
-    /* float:left; */
-    position:fixed;
+.text-container {
+    padding: 5px;
+}
 
+/* 修正導覽列：改為正常浮動靠左 */
+#nav {
+    background-color: greenyellow;
+    width: 100px;
+    float: left;
 }
 
 ul {
-    padding:0;
+    padding: 0;
+    margin: 0;
     list-style-type: none;
 }
 
 li {
-    display:block;
-    /* height:40px; */
-    /* padding: 10px;
-    margin: 10px; */
-    /* background-color: lightgreen; */
-    /* border: 1px solid black; */
+    display: block;
     text-align: center;
-    
-
 }
 
 li:hover {
     background-color: pink;
 }
 
-
-li a{
+li a {
     text-decoration: none;
 }
 
-#nav-placeholder{
-    width:100px;
-    float:left;
+/* 如果 nav 沒有 fixed，這塊占位 div 就不需要 float */
+#nav-placeholder {
+    display: none;
 }
 
+/* 修正內容區塊 */
 #content {
-    background-color:lightcyan;
-    width:600px;
-    float:left;
-    height:1000px;
+    background-color: lightcyan;
+    width: 600px;
+    float: left;
+    /* 建議先拿掉固定高度 1000px，讓內容自動撐開，或依範例調整 */
+    min-height: 500px; 
 }
 
 section {
-    padding-top: 200px;
-    margin-top: -200px;   
+    padding-top: 10px; /* 如果 banner 不是 fixed，就不需要靠負 margin 來補位 */
 }
 
 #supporting {
-    background-color:lightgoldenrodyellow;
-    width:100px;
-    float:left;
+    background-color: lightgoldenrodyellow;
+    width: 100px;
+    float: left;
 }
 
 #footer {
-    background-color:dimgray;
-    width:800px;
-    height:50px;
-    clear:both;
+    background-color: dimgray;
+    width: 800px;
+    height: 50px;
+    clear: both;
 }
