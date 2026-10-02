@@ -1,8 +1,4 @@
-html {
-    scroll-behavior: smooth; /* 點擊選單時平滑滾動 */
-}
-
-body {
+ody {
     margin: 0;
     padding: 0;
 }
@@ -12,87 +8,77 @@ body {
     margin: 0 auto;
 }
 
-/* 固定在頂部的 Banner */
 #banner {
     width: 800px;
     height: 100px;
     background-color: beige;
-    opacity: 0.7;
-    clear: both;
-    position: fixed;
-    z-index: 100; /* 確保 Banner 永遠浮在最上層 */
+    opacity:0.7;
+    clear:both;
+    position:fixed;
 }
 
-/* 頂出 100px 空間，避免下方內容被 fixed 的 Banner 擋住 */
-#banner-placeholder {
+#banner-placeholder{
     height: 100px;
 }
 
-/* 固定在左側的選單 */
 #nav {
     width: 100px;
-    position: fixed;
-    z-index: 99;
+    /* height: 200px; */
+    /* background-color:lightgray; */
+    /* float:left; */
+    position:fixed;
 }
 
-ul {
+ul{
     padding-left: 0;
-    margin: 0;
-    list-style-type: none; /* 移除清單圓點 */
 }
-
-li {
-    display: block;
+li{
+    display:block;
     text-align: center;
     margin-bottom: 5px;
-    background-color: lightgray;
+    background-color:lightgray;
 }
 
-li:hover {
-    background-color: pink;
+li:hover{
+    background-color:pink;
 }
-
-ul a {
+ul a{
     text-decoration: none;
-    color: black;
 }
 
-/* 占位盒：把 content 推開 100px，留出空間給 fixed 的 nav */
-#nav-placeholder {
-    width: 100px;
-    float: left;
+#nav-placeholder{
+    width:100px;
+    float:left;
 }
-
 #content {
     width: 600px;
-    float: left;
-    background-color: lightcyan; /* 可自行調整背景色 */
+    float:left;
 }
-
 #supporting {
     width: 100px;
-    min-height: 150px;
-    background-color: pink;
-    float: left;
+    height: 150px;
+    background-color:pink;
+    float:left;
 }
-
 #footer {
     width: 800px;
     height: 50px;
-    background-color: gray;
-    clear: both;
+    background-color:gray;
+    clear:both;
 }
 
 .container {
-    overflow: hidden; /* 清除子元素 float 影響 */
+  overflow: hidden; /* Clear floats */
 }
 
-section {
-    height: 100vh; /* 每個區塊佔滿一個螢幕高度 */
-    scroll-margin-top: 100px; /* 關鍵：錨点定位時自動扣除 Banner 的 100px 高度 */
-    position: relative;
+section{
+    height:100vh;
+    scroll-margin-top: 100px; 
+/*     padding-top: 100px;
+    margin-top: -100px;     */
+    position:relative;
 }
 
-.text-container {
+.text-container{
     padding: 5px;
 }
