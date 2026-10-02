@@ -3,33 +3,26 @@ html, body {
     padding: 0;
 }
 
+/* 置中外盒 */
 #wrapper {
     width: 800px;
     margin: 0 auto;
 }
 
+/* 頂部 Banner 區塊 */
 #banner {
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: lightgray; /* 可以改成喜歡的顏色 */
     width: 800px;
     height: 200px;
     clear: both;
-    /* 如果要跟著畫面捲動，請註解掉固定定位 */
-    /* position: fixed; top: 0; */
 }
 
-#banner-placeholder {
-    display: none; /* 如果 banner 不是 fixed，預留空間的區塊就可以隱藏或刪除 */
-}
-
+/* 清除浮動的容器 */
 .container {
-    overflow: hidden; /* 清除子元素浮動（float）影響 */
+    overflow: hidden; /* 確保裡面的 float 不會影響下方 */
 }
 
-.text-container {
-    padding: 5px;
-}
-
-/* 修正導覽列：改為正常浮動靠左 */
+/* 左側導覽列 */
 #nav {
     background-color: greenyellow;
     width: 100px;
@@ -55,30 +48,29 @@ li a {
     text-decoration: none;
 }
 
-/* 如果 nav 沒有 fixed，這塊占位 div 就不需要 float */
-#nav-placeholder {
-    display: none;
-}
-
-/* 修正內容區塊 */
+/* 中間主要內容區 */
 #content {
     background-color: lightcyan;
     width: 600px;
     float: left;
-    /* 建議先拿掉固定高度 1000px，讓內容自動撐開，或依範例調整 */
     min-height: 500px; 
 }
 
+/* 修正重疊的核心：取消負 margin */
 section {
-    padding-top: 10px; /* 如果 banner 不是 fixed，就不需要靠負 margin 來補位 */
+    padding: 20px;
+    margin-top: 0; /* 務必改回 0，否則內容會向上重疊 */
 }
 
+/* 右側補充區塊 */
 #supporting {
     background-color: lightgoldenrodyellow;
     width: 100px;
     float: left;
+    min-height: 500px;
 }
 
+/* 頁尾 */
 #footer {
     background-color: dimgray;
     width: 800px;
