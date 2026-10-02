@@ -1,79 +1,98 @@
-html, body {
+html {
+    scroll-behavior: smooth; /* 點擊選單時平滑滾動 */
+}
+
+body {
     margin: 0;
     padding: 0;
 }
 
-/* 置中外盒 */
 #wrapper {
     width: 800px;
     margin: 0 auto;
 }
 
-/* 頂部 Banner 區塊 */
+/* 固定在頂部的 Banner */
 #banner {
-    background-color: lightgray; /* 可以改成喜歡的顏色 */
     width: 800px;
-    height: 200px;
+    height: 100px;
+    background-color: beige;
+    opacity: 0.7;
     clear: both;
+    position: fixed;
+    z-index: 100; /* 確保 Banner 永遠浮在最上層 */
 }
 
-/* 清除浮動的容器 */
-.container {
-    overflow: hidden; /* 確保裡面的 float 不會影響下方 */
+/* 頂出 100px 空間，避免下方內容被 fixed 的 Banner 擋住 */
+#banner-placeholder {
+    height: 100px;
 }
 
-/* 左側導覽列 */
+/* 固定在左側的選單 */
 #nav {
-    background-color: greenyellow;
     width: 100px;
-    float: left;
+    position: fixed;
+    z-index: 99;
 }
 
 ul {
-    padding: 0;
+    padding-left: 0;
     margin: 0;
-    list-style-type: none;
+    list-style-type: none; /* 移除清單圓點 */
 }
 
 li {
     display: block;
     text-align: center;
+    margin-bottom: 5px;
+    background-color: lightgray;
 }
 
 li:hover {
     background-color: pink;
 }
 
-li a {
+ul a {
     text-decoration: none;
+    color: black;
 }
 
-/* 中間主要內容區 */
-#content {
-    background-color: lightcyan;
-    width: 600px;
-    float: left;
-    min-height: 500px; 
-}
-
-/* 修正重疊的核心：取消負 margin */
-section {
-    padding: 20px;
-    margin-top: 0; /* 務必改回 0，否則內容會向上重疊 */
-}
-
-/* 右側補充區塊 */
-#supporting {
-    background-color: lightgoldenrodyellow;
+/* 占位盒：把 content 推開 100px，留出空間給 fixed 的 nav */
+#nav-placeholder {
     width: 100px;
     float: left;
-    min-height: 500px;
 }
 
-/* 頁尾 */
+#content {
+    width: 600px;
+    float: left;
+    background-color: lightcyan; /* 可自行調整背景色 */
+}
+
+#supporting {
+    width: 100px;
+    min-height: 150px;
+    background-color: pink;
+    float: left;
+}
+
 #footer {
-    background-color: dimgray;
     width: 800px;
     height: 50px;
+    background-color: gray;
     clear: both;
+}
+
+.container {
+    overflow: hidden; /* 清除子元素 float 影響 */
+}
+
+section {
+    height: 100vh; /* 每個區塊佔滿一個螢幕高度 */
+    scroll-margin-top: 100px; /* 關鍵：錨点定位時自動扣除 Banner 的 100px 高度 */
+    position: relative;
+}
+
+.text-container {
+    padding: 5px;
 }
