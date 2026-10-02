@@ -1,48 +1,68 @@
-body {
+
+html, body {
     margin: 0;
     padding: 0;
 }
 
-#wrapper {
-    width: 800px;
-    margin: 0 auto;
+#wrapper{
+    width:800px;
+    margin:0 auto;
 }
 
-#banner {
-    width: 800px;
-    height: 100px;
-    background-color: beige;
-    opacity:0.7;
+
+#banner{
+    background-color: rgba(0, 0, 0, 0.5);
+    width:800px;
+    height:200px;
     clear:both;
     position:fixed;
+    top:0px;
+    /* left:0px; */
 }
 
 #banner-placeholder{
-    height: 100px;
+    height:200px;
+}
+
+.container {
+    overflow: hidden; /* Clear floats */
+  }
+
+.text-container{
+    padding:5px;
 }
 
 #nav {
-    width: 100px;
-    /* height: 200px; */
-    /* background-color:lightgray; */
+    background-color:greenyellow;
+    width:100px;
     /* float:left; */
     position:fixed;
+
 }
 
-ul{
-    padding-left: 0;
+ul {
+    padding:0;
+    list-style-type: none;
 }
-li{
+
+li {
     display:block;
+    /* height:40px; */
+    /* padding: 10px;
+    margin: 10px; */
+    /* background-color: lightgreen; */
+    /* border: 1px solid black; */
     text-align: center;
-    margin-bottom: 5px;
-    background-color:lightgray;
+    
+
 }
 
-li:hover{
-    background-color:pink;
+li:hover {
+    background-color: pink;
 }
-ul a{
+
+
+li a{
     text-decoration: none;
 }
 
@@ -50,35 +70,28 @@ ul a{
     width:100px;
     float:left;
 }
+
 #content {
-    width: 600px;
+    background-color:lightcyan;
+    width:600px;
     float:left;
+    height:1000px;
 }
+
+section {
+    padding-top: 200px;
+    margin-top: -200px;   
+}
+
 #supporting {
-    width: 100px;
-    height: 150px;
-    background-color:pink;
+    background-color:lightgoldenrodyellow;
+    width:100px;
     float:left;
 }
+
 #footer {
-    width: 800px;
-    height: 50px;
-    background-color:gray;
+    background-color:dimgray;
+    width:800px;
+    height:50px;
     clear:both;
-}
-
-.container {
-  overflow: hidden; /* Clear floats */
-}
-
-section{
-    height:100vh;
-/*     scroll-margin-top: 100px;  */
-    padding-top: 100px;
-    margin-top: -100px;    
-    position:relative;
-}
-
-.text-container{
-    padding: 5px;
 }
