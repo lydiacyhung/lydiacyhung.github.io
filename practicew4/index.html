@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scene Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Smooth scrolling setup */
+        html {
+            scroll-behavior: smooth;
+        }
+        /* Custom scrollbar for subtle look */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased m-0 p-0 overflow-x-hidden">
+
+    <!-- Fixed Top Banner (Height: 56px / h-14) -->
+    <header class="fixed top-0 left-0 right-0 h-14 bg-slate-800 border-b border-slate-700 z-50 flex items-center justify-center font-bold text-lg text-emerald-400 tracking-wide shadow-md">
+        Here is Banner
+    </header>
+
+    <!-- Main Container under Header -->
+    <div class="pt-14 flex min-h-screen relative">
+
+        <!-- Left Sidebar: Fixed (100px wide, pinned to left below top banner) -->
+        <aside class="fixed top-14 left-0 w-[100px] h-[calc(100vh-3.5rem)] bg-slate-800/90 backdrop-blur-md border-r border-slate-700 z-40 flex flex-col p-2 space-y-2">
+            <a href="#scene01" class="w-full py-2.5 px-1 text-center text-xs font-semibold rounded bg-slate-700/50 hover:bg-emerald-500 hover:text-slate-950 transition-all duration-200 text-slate-200 hover:shadow-lg">
+                Scene01
+            </a>
+            <a href="#scene02" class="w-full py-2.5 px-1 text-center text-xs font-semibold rounded bg-slate-700/50 hover:bg-emerald-500 hover:text-slate-950 transition-all duration-200 text-slate-200 hover:shadow-lg">
+                Scene02
+            </a>
+            <a href="#scene03" class="w-full py-2.5 px-1 text-center text-xs font-semibold rounded bg-slate-700/50 hover:bg-emerald-500 hover:text-slate-950 transition-all duration-200 text-slate-200 hover:shadow-lg">
+                Scene03
+            </a>
+            <a href="#scene04" class="w-full py-2.5 px-1 text-center text-xs font-semibold rounded bg-slate-700/50 hover:bg-emerald-500 hover:text-slate-950 transition-all duration-200 text-slate-200 hover:shadow-lg">
+                Scene04
+            </a>
+        </aside>
+
+        <!-- Middle Column: Main Content Area -->
+        <!-- ml-[100px] pushes content past fixed left sidebar -->
+        <main class="ml-[100px] flex-1 min-w-0">
+            
+            <!-- Scene 01 Section -->
+            <section id="scene01" class="h-[calc(100vh-3.5rem)] scroll-mt-14 relative bg-slate-900 border-b border-slate-800 p-6 flex flex-col justify-start items-start">
+                <span class="text-2xl font-bold text-emerald-400 bg-slate-800/80 px-4 py-2 rounded border border-slate-700 shadow-sm">
+                    Scene01
+                </span>
+            </section>
+
+            <!-- Scene 02 Section -->
+            <section id="scene02" class="h-[calc(100vh-3.5rem)] scroll-mt-14 relative bg-slate-800/40 border-b border-slate-800 p-6 flex flex-col justify-start items-start">
+                <span class="text-2xl font-bold text-cyan-400 bg-slate-800/80 px-4 py-2 rounded border border-slate-700 shadow-sm">
+                    Scene02
+                </span>
+            </section>
+
+            <!-- Scene 03 Section -->
+            <section id="scene03" class="h-[calc(100vh-3.5rem)] scroll-mt-14 relative bg-slate-900 border-b border-slate-800 p-6 flex flex-col justify-start items-start">
+                <span class="text-2xl font-bold text-indigo-400 bg-slate-800/80 px-4 py-2 rounded border border-slate-700 shadow-sm">
+                    Scene03
+                </span>
+            </section>
+
+            <!-- Scene 04 Section -->
+            <section id="scene04" class="h-[calc(100vh-3.5rem)] scroll-mt-14 relative bg-slate-800/40 p-6 flex flex-col justify-start items-start">
+                <span class="text-2xl font-bold text-purple-400 bg-slate-800/80 px-4 py-2 rounded border border-slate-700 shadow-sm">
+                    Scene04
+                </span>
+            </section>
+
+        </main>
+
+        <!-- Right Sidebar: Non-fixed (100px wide, scrolls away naturally) -->
+        <aside class="w-[100px] bg-slate-800/60 border-l border-slate-700 p-3 flex flex-col items-center shrink-0">
+            <span class="text-xs font-semibold tracking-wider text-slate-300 uppercase writing-mode-vertical sm:writing-mode-horizontal text-center">
+                information
+            </span>
+        </aside>
+
+    </div>
+
+</body>
+</html>
