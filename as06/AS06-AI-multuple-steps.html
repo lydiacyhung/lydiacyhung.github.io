@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>整頁跳轉 + 長頁滾動</title>
+
+  <!-- ====================== CSS：負責「長相」 ====================== -->
+  <style>
+    /* 把瀏覽器預設的邊界拿掉，色塊才會貼齊畫面邊緣 */
+    body {
+      margin: 0;
+      background: #222;          /* 第一頁／最後一頁彈跳時，露出來的底色 */
+      font-family: sans-serif;
+    }
+
+    /* 每一頁共用的設定 */
+    .page {
+      height: 100vh;             /* 100vh = 剛好一個畫面的高度 */
+      height: 100dvh;            /* 手機／平板的網址列會佔掉一些空間，vh 會比「真正看得到的畫面」高一點；
+                                    dvh 則是「扣掉網址列後真正看得到的高度」。
+                                    兩行都寫：新瀏覽器用 dvh，不認得 dvh 的舊瀏覽器就用上一行的 vh */
+      display: flex;             /* 下面三行：讓文字在色塊正中央 */
+      justify-content: center;
+      align-items: center;
+      font-size: 40px;
+      color: white;
+    }
+
+    /* 長頁：高度是三個畫面（想更長就把 300 改大） */
+    .long {
+      height: 300vh;
+      height: 300dvh;            /* 跟上面一樣的道理：新瀏覽器用 dvh */
+      position: relative;       /* 讓下面的箭頭可以「以長頁為基準」來定位 */
+    }
+
+    /* ---------- 長頁頭尾的箭頭（提示：還可以繼續滑） ---------- */
+    .arrow {
+      position: absolute;        /* 貼在長頁裡的固定位置（位置寫在下面兩段） */
+      left: 50%;
+      margin-left: -30px;        /* 往左移自己寬度的一半 → 水平置中 */
+      width: 60px;
+      height: 60px;
+      line-height: 60px;         /* 讓箭頭符號在圓圈裡垂直置中 */
+      text-align: center;
+      font-size: 32px;
+      border-radius: 50%;        /* 50% = 變成圓形 */
+      background: rgba(0, 0, 0, 0.3);          /* 半透明的黑色圓底（在亮色、暗色背景上都看得清楚） */
+      display: none;             /* 平常先藏起來，撞到長頁頭尾時才由 jQuery 叫出來 */
+    }
+    #arrowUp   { top: 30px; }    /* 往上的箭頭：放在長頁最上面 */
+    #arrowDown { bottom: 30px; } /* 往下的箭頭：放在長頁最下面 */
+
+    /* 每一頁各自的顏色（可以自由換成喜歡的色碼） */
+    #page1 { background: #e76f51; }
+    #page2 { background: #f4a261; }
+    /* 長頁用四個顏色的漸層（由上到下：黃 → 綠 → 藍 → 深藍），滾動時顏色會明顯變化 */
+    #page3 { background: linear-gradient(#f9c74f, #43aa8b, #277da1, #1b1f5e); }
+    #page4 { background: #8ab17d; }
+    #page5 { background: #6d597a; }
+
+    /* ---------- 彈跳動畫（表示「這個方向到底了」） ---------- */
+
+    /* 往下滑到底時：整個畫面往上移 80px 再回來 → 會露出下一頁的一點點 */
+    @keyframes bounceUp {
+      0%   { transform: translateY(0); }
+      40%  { transform: translateY(-80px); }
+      100% { transform: translateY(0); }
+    }
+
+    /* 往上滑到頂時：整個畫面往下移 80px 再回來 → 會露出上一頁的一點點 */
+    @keyframes bounceDown {
+      0%   { transform: translateY(0); }
+      40%  { transform: translateY(80px); }
+      100% { transform: translateY(0); }
+    }
+
+    /* body 被加上這兩個 class 的其中一個，就會播放對應的動畫 0.5 秒 */
+    .bounce-up   { animation: bounceUp 0.5s; }
+    .bounce-down { animation: bounceDown 0.5s; }
+  </style>
+</head>
+
+<body>
+
+  <!-- ====================== HTML：負責「內容」 ====================== -->
+  <div class="page" id="page1">第 1 頁（整頁跳轉）</div>
+  <!-- class 說明：
+       page   = 每一頁都要有
+       long   = 長頁（在裡面是一般的捲動，不是整頁跳轉）
+       effect = 這個長頁滑到頭尾時，要有「彈跳 + 箭頭」的效果 -->
+  <div class="page" id="page2">第 2 頁（整頁跳轉）</div>
+  <div class="page long effect" id="page3">
+    第 3 頁（長頁，頭尾有彈跳和箭頭）
+    <div class="arrow" id="arrowUp">↑</div>     <!-- 長頁頂端的箭頭：還可以往上滑 -->
+    <div class="arrow" id="arrowDown">↓</div>   <!-- 長頁底部的箭頭：還可以往下滑 -->
+  </div>
+  <div class="page" id="page4">第 4 頁（整頁跳轉）</div>
+  <div class="page" id="page5">第 5 頁（最後一頁）</div>
+
+  <!-- 載入 jQuery（一定要放在自己寫的程式「之前」） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+  <!-- ====================== jQuery：負責「動作」 ====================== -->
+  <script>
+    /* ────────────────────────────────────────────────────────────
+       重要觀念：「一次滑動」只能做一件事
+
+       ・電腦：滑一下滾輪或觸控板，瀏覽器其實會連續送出「很多個」滾輪訊號
+               （滑越大力，訊號越多、持續越久）。
+               手放開後，訊號還會「越來越小」地持續一兩秒（這叫慣性）。
+               所以：訊號一路變小 = 還是同一次滑動；
+                     訊號突然變大、或方向反過來 = 使用者又滑了新的一次。
+       ・手機：手指按下 → 移動 → 放開，算一次滑動。
+
+       每一次滑動只會是下面兩種其中一種：
+         'done' → 整頁跳轉（只跳一頁，之後的訊號全部忽略）
+         'free' → 在長頁裡面自由滾動（滾到長頁的頭或尾就彈一下停住，不會換頁）
+
+       另外：畫面的捲動「全部」由這份程式自己控制，
+       不交給瀏覽器，這樣畫面才不會卡在兩頁中間。
+       ──────────────────────────────────────────────────────────── */
+
+    // isLocked = 「上鎖中」：上鎖的時候，不管怎麼滑都先不理會。
+    // 跳轉動畫播放時、彈跳時都會短暫上鎖，
+    // 這樣同一次大力的滑動才不會被誤認成兩次。
+    var isLocked = false;
+
+    // 下面三個變數：記住「目前正在滾動的那個長頁」的資料
+    // （由小工具 4 的 canFreeScroll 負責填寫）
+    var longStart = 0;         // 這個長頁的頂端位置
+    var longEnd = 0;           // 這個長頁「滾到底」的位置
+    var longHasEffect = false; // 這個長頁的頭尾要不要有彈跳和箭頭（有沒有 effect 這個 class）
+
+    // -------- 小工具 1：某個長頁的頂端位置 --------
+    // page = 要問的那一頁
+    function getStart(page) {
+      return $(page).offset().top;
+    }
+
+    // -------- 小工具 2：某個長頁「滾到底」的位置（長頁底部剛好貼齊畫面底部） --------
+    function getEnd(page) {
+      return getStart(page) + $(page).outerHeight() - $(window).height();
+    }
+
+    // -------- 小工具 3：列出所有「停靠點」（每一頁的頂端，再加上每個長頁的底部） --------
+    function getStops() {
+      var stops = [];
+      $('.page').each(function () {
+        stops.push(getStart(this));          // this = 現在輪到的那一頁
+      });
+      $('.long').each(function () {
+        stops.push(getEnd(this));
+      });
+      stops.sort(function (a, b) { return a - b; });  // 由小到大排好
+      return stops;
+    }
+
+    // -------- 小工具 4：現在可以在某個長頁裡自由滾動嗎？ --------
+    // direction（方向）：1 = 往下，-1 = 往上
+    // 會把每一個長頁都檢查一遍；如果可以，順便記住是哪一個長頁
+    function canFreeScroll(direction) {
+      var now = $(window).scrollTop();   // 目前捲到哪裡（離網頁最上方幾 px）
+      var found = false;                 // 找到可以滾動的長頁了嗎？
+
+      $('.long').each(function () {
+        var start = getStart(this);
+        var end   = getEnd(this);
+        var ok;
+        if (direction == 1) {
+          // 往下：人在這個長頁裡，而且還沒到它的底部
+          ok = (now >= start - 5 && now < end - 5);
+        } else {
+          // 往上：人在這個長頁裡，而且還沒到它的頂端
+          ok = (now > start + 5 && now <= end + 5);
+        }
+        if (ok) {
+          found = true;
+          longStart = start;
+          longEnd = end;
+          longHasEffect = $(this).hasClass('effect');
+        }
+      });
+
+      return found;
+    }
+
+    // -------- 小工具 5：上鎖一小段時間（time 的單位是毫秒，1000 = 1 秒） --------
+    function lockFor(time) {
+      isLocked = true;
+      setTimeout(function () { isLocked = false; }, time);
+    }
+
+    // -------- 功能一：彈跳一下（表示這個方向到底了） --------
+    // direction 1 = 往下滑到底（畫面往上彈）；-1 = 往上滑到頂（畫面往下彈）
+    function bounce(direction) {
+      isLocked = true;                               // 彈跳的 0.5 秒內先上鎖
+      if (direction == 1) {
+        $('body').addClass('bounce-up');             // 加上 class → 播放動畫
+      } else {
+        $('body').addClass('bounce-down');
+      }
+      setTimeout(function () {
+        $('body').removeClass('bounce-up bounce-down');  // 播完拿掉 class，下次才能再播
+        isLocked = false;                                // 解鎖
+      }, 500);
+    }
+
+    // -------- 功能二：用動畫把畫面捲到某個位置 --------
+    function animateTo(position) {
+      isLocked = true;                               // 動畫期間先上鎖
+      $('html, body').animate({ scrollTop: position }, 700, function () {
+        isLocked = false;                            // 動畫播完才解鎖
+      });
+    }
+
+    // -------- 功能三：往某個方向「跳一頁」 --------
+    function jumpOnePage(direction) {
+      var now = $(window).scrollTop();
+      var stops = getStops();
+
+      // 找出要跳去哪個停靠點（target = 目標；-1 代表還沒找到）
+      var target = -1;
+      if (direction == 1) {
+        // 往下：找「下面最近的一個」
+        for (var i = 0; i < stops.length; i++) {
+          if (stops[i] > now + 5) { target = stops[i]; break; }
+        }
+      } else {
+        // 往上：找「上面最近的一個」（所以從後面往前找）
+        for (var j = stops.length - 1; j >= 0; j--) {
+          if (stops[j] < now - 5) { target = stops[j]; break; }
+        }
+      }
+
+      if (target != -1) {
+        animateTo(target);     // 找到了 → 跳過去
+      } else {
+        bounce(direction);     // 找不到 = 已經在第一頁最頂／最後一頁最底 → 彈跳一下
+      }
+    }
+
+    // -------- 功能四：顯示箭頭（提示使用者還可以繼續往這個方向滑） --------
+    // which = 要顯示哪一個箭頭：'#arrowUp' 或 '#arrowDown'
+    function showArrow(which) {
+      // stop(true, true) = 如果上一次的淡入淡出還沒播完，先結束它，再重新播
+      // 淡入 0.2 秒 → 停留 1.5 秒 → 淡出 0.4 秒
+      $(which).stop(true, true).fadeIn(200).delay(1500).fadeOut(400);
+    }
+
+    // -------- 功能五：在長頁裡把畫面移到某個位置 --------
+    // 如果會超出長頁：停在長頁的頭或尾，並回答 true（代表「撞到邊了」）
+    function scrollLongPage(position) {
+      if (position > longEnd) {
+        $(window).scrollTop(longEnd);        // 剛好停在長頁底部
+        if (longHasEffect) {
+          bounce(1);                         // 彈一下，露出一點點下一頁
+          showArrow('#arrowDown');           // 顯示往下的箭頭
+        } else {
+          lockFor(500);                      // 沒有效果的長頁：安靜地停住 0.5 秒
+        }
+        return true;
+      }
+      if (position < longStart) {
+        $(window).scrollTop(longStart);      // 剛好停在長頁頂端
+        if (longHasEffect) {
+          bounce(-1);                        // 彈一下，露出一點點上一頁
+          showArrow('#arrowUp');             // 顯示往上的箭頭
+        } else {
+          lockFor(500);
+        }
+        return true;
+      }
+      $(window).scrollTop(position);         // 沒超出 → 正常移動
+      return false;
+    }
+
+
+    /* ==================== 電腦：滑鼠滾輪／觸控板 ==================== */
+
+    var wheelMode = 'none';    // 這次滑動的狀態：'none'（還沒開始）、'done'、'free'
+    var wheelTimer;            // 計時器：訊號停了多久
+    var lastSize = 0;          // 上一個訊號的大小（力道）
+    var lastDirection = 0;     // 上一個訊號的方向
+
+    // 每收到一個滾輪訊號，都會執行這裡
+    // （passive: false 的意思是：允許我們「取消」瀏覽器原本的捲動）
+    window.addEventListener('wheel', function (event) {
+
+      // 取消瀏覽器自己的捲動，全部由下面的程式控制
+      event.preventDefault();
+
+      // 這個訊號的方向：deltaY 是正數 = 往下，負數 = 往上
+      var direction = 1;
+      if (event.deltaY < 0) { direction = -1; }
+
+      // 這個訊號的大小（Math.abs = 取絕對值，不管正負只看大小）
+      var size = Math.abs(event.deltaY);
+
+      // 判斷：這是不是「新的一次滑動」？
+      // 訊號比上一個明顯變大，或方向反過來 → 是新的一次
+      var isNewSwipe = (size > lastSize + 2) || (direction != lastDirection);
+
+      // 記住這次的大小和方向，給下一個訊號比較用
+      lastSize = size;
+      lastDirection = direction;
+
+      // 另外，訊號停了 0.1 秒以上，也算上一次滑動結束了
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(function () {
+        wheelMode = 'none';
+        lastSize = 0;
+      }, 100);
+
+      // 上鎖中（動畫或彈跳播放中）：一律忽略
+      if (isLocked) {
+        wheelMode = 'done';
+        return;
+      }
+
+      // 偵測到新的一次滑動 → 狀態歸零，重新判斷要做什麼
+      if (isNewSwipe) {
+        wheelMode = 'none';
+      }
+
+      // 這次滑動已經做完事了：剩下的（慣性）訊號一律忽略 →「不會連跳兩頁」的關鍵
+      if (wheelMode == 'done') {
+        return;
+      }
+
+      // 新的一次滑動開始：決定這次是「自由滾動」還是「跳一頁」
+      if (wheelMode == 'none') {
+        if (canFreeScroll(direction)) {
+          wheelMode = 'free';
+        } else {
+          wheelMode = 'done';
+          jumpOnePage(direction);
+          return;
+        }
+      }
+
+      // 在長頁裡自由滾動：訊號多大，畫面就移動多少（滑得快就滾得快）。
+      // 如果撞到長頁的頭或尾：彈一下、這次滑動到此為止。
+      // 所以同一次滑動絕對不會衝到下一頁，要「再滑一次」才會換頁。
+      var hitEdge = scrollLongPage($(window).scrollTop() + event.deltaY);
+      if (hitEdge) {
+        wheelMode = 'done';
+      }
+
+    }, { passive: false });
+
+
+    /* ==================== 手機／平板：手指滑動 ==================== */
+
+    var touchMode = 'none';    // 這次滑動的狀態：'none'、'done'、'free'
+    var touchStartY = 0;       // 起點：手指的位置
+    var touchStartScroll = 0;  // 起點：畫面捲到哪裡
+
+    // 下面這幾個變數是給「慣性」用的：
+    // 手指在長頁上滑完放開後，畫面要像一般網頁一樣，順著再滑一小段、慢慢停下來
+    var touchLastY = 0;        // 上一次手指的位置
+    var touchLastTime = 0;     // 上一次記錄的時間
+    var speed = 0;             // 手指的速度（每一格畫面移動幾 px；正數 = 往下捲）
+    var isGliding = false;     // 現在是不是正在「慣性滑行」中
+    var glidePosition = 0;     // 慣性滑行中，畫面目前的位置
+
+    // 手指按下：記住起點
+    window.addEventListener('touchstart', function (event) {
+      isGliding = false;                       // 手指一碰到螢幕，慣性滑行就停下來
+      touchMode = 'none';
+      touchStartY = event.touches[0].clientY;
+      touchStartScroll = $(window).scrollTop();
+      touchLastY = touchStartY;
+      touchLastTime = Date.now();              // Date.now() = 現在的時間（毫秒）
+      speed = 0;
+    }, { passive: false });
+
+    // 手指移動
+    window.addEventListener('touchmove', function (event) {
+
+      event.preventDefault();          // 取消瀏覽器自己的捲動，全部由下面的程式控制
+
+      // 上鎖中，或這次滑動已經做完事了：忽略
+      if (isLocked || touchMode == 'done') {
+        return;
+      }
+
+      var y = event.touches[0].clientY;   // 手指現在的位置
+
+      // moved = 手指從起點移動了多少。手指往上推 = 想看下面的內容 = 正數
+      var moved = touchStartY - y;
+
+      // 新的一次滑動：手指移動超過 10px 才開始判斷（避免只是輕碰一下）
+      if (touchMode == 'none') {
+        if (Math.abs(moved) < 10) {
+          return;
+        }
+
+        var direction = 1;
+        if (moved < 0) { direction = -1; }
+
+        if (canFreeScroll(direction)) {
+          touchMode = 'free';
+          // 把「現在」當成新的起點，畫面才不會突然跳一下
+          touchStartY = y;
+          touchStartScroll = $(window).scrollTop();
+          touchLastY = y;
+          touchLastTime = Date.now();
+          return;
+        } else {
+          touchMode = 'done';
+          jumpOnePage(direction);
+          return;
+        }
+      }
+
+      // ---- 以下是在長頁裡自由滾動 ----
+
+      // 算出手指現在的速度：（這次移動的距離 ÷ 花掉的時間）× 16 毫秒（大約一格畫面的時間）
+      var now = Date.now();
+      var time = now - touchLastTime;
+      if (time > 0) {
+        var newSpeed = (touchLastY - y) / time * 16;
+        speed = speed * 0.5 + newSpeed * 0.5;   // 跟上一次的速度平均一下，數字比較穩定
+      }
+      touchLastY = y;
+      touchLastTime = now;
+
+      // 畫面跟著手指走；撞到頭或尾就彈一下、這次滑動結束
+      var hitEdge = scrollLongPage(touchStartScroll + (touchStartY - y));
+      if (hitEdge) {
+        touchMode = 'done';
+      }
+
+    }, { passive: false });
+
+    // 手指放開：如果是在長頁裡滑、而且放開時手指還在動 → 開始慣性滑行
+    window.addEventListener('touchend', function () {
+      var stillMoving = (Date.now() - touchLastTime < 100);   // 放開前 0.1 秒內手指還有在動
+      if (touchMode == 'free' && stillMoving && Math.abs(speed) > 2) {
+        // 速度設個上限，免得一下滑太遠
+        if (speed > 80)  { speed = 80; }
+        if (speed < -80) { speed = -80; }
+        isGliding = true;
+        glidePosition = $(window).scrollTop();
+        requestAnimationFrame(glide);    // 請瀏覽器在「下一格畫面」執行 glide
+      }
+    });
+
+    // 慣性滑行：每一格畫面執行一次，速度越來越慢，直到停下來
+    function glide() {
+      if (!isGliding) { return; }        // 被手指按停了（! 是「不是」的意思）
+
+      speed = speed * 0.96;              // 每一格速度變成原本的 96% → 慢慢減速
+      if (Math.abs(speed) < 0.5) {       // 夠慢了 → 停
+        isGliding = false;
+        return;
+      }
+
+      glidePosition = glidePosition + speed;
+      var hitEdge = scrollLongPage(glidePosition);   // 撞到長頁頭尾 → 彈一下並停止
+      if (hitEdge) {
+        isGliding = false;
+        return;
+      }
+
+      requestAnimationFrame(glide);      // 下一格畫面再執行一次自己
+    }
+
+
+    /* ==================== 保險：絕對不卡在兩頁中間 ==================== */
+    // 如果用了別的方式捲動（例如拖右邊的捲軸、按鍵盤上下鍵），
+    // 畫面停下來 0.2 秒後檢查一次：如果停在兩頁中間，就自動吸到最近的一頁。
+
+    var settleTimer;
+
+    // 'scroll resize' = 畫面捲動時、或視窗大小改變時（例如手機轉向），都檢查一次
+    $(window).on('scroll resize', function () {
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(function () {
+
+        if (isLocked || isGliding) { return; }       // 動畫中、慣性滑行中不用檢查
+
+        var now = $(window).scrollTop();
+
+        // 在任何一個長頁的範圍內 → 停在哪裡都可以
+        var insideLong = false;
+        $('.long').each(function () {
+          if (now >= getStart(this) && now <= getEnd(this)) { insideLong = true; }
+        });
+        if (insideLong) { return; }
+
+        // 找出離現在最近的停靠點
+        var stops = getStops();
+        var nearest = stops[0];
+        for (var i = 0; i < stops.length; i++) {
+          if (Math.abs(stops[i] - now) < Math.abs(nearest - now)) {
+            nearest = stops[i];
+          }
+        }
+
+        // 如果沒有剛好停在停靠點上 → 吸過去
+        if (Math.abs(nearest - now) > 2) {
+          animateTo(nearest);
+        }
+      }, 200);
+    });
+  </script>
+
+</body>
+</html>
