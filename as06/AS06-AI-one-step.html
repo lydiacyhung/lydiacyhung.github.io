@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<!-- 讓手機、平板用正確的寬度顯示網頁，並且不允許雙指縮放（避免干擾滑動效果） -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>AS06 一次滑一頁</title>
+
+<!-- 載入 jQuery（一個讓 JavaScript 寫起來更簡單的工具包） -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<style>
+/* ============================================================
+   CSS：負責「長什麼樣子」
+   ============================================================ */
+
+/* 把整個網頁原本的捲軸關掉，改由我們自己用程式控制畫面移動 */
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;            /* 不顯示瀏覽器原本的捲軸 */
+  overscroll-behavior: none;   /* 關掉手機上「拉到底會彈一下」的原生效果，改用我們自己的 */
+  touch-action: none;          /* 關掉手機原本的手指捲動，改用我們自己的 */
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  background: #111;
+}
+
+/* #bouncer：外層盒子，專門負責「整個畫面彈跳一下」的動畫 */
+#bouncer {
+  height: 100%;
+}
+
+/* #track：裡面的長條軌道，五個頁面上下排在裡面。
+   程式會把它往上推，就像拉動一卷長長的紙 */
+#track {
+  will-change: transform;      /* 提示瀏覽器：這個東西會一直移動，請幫忙加速 */
+}
+
+/* 每一頁共同的樣式 */
+.page {
+  height: 100vh;               /* 一頁 = 一個螢幕高 */
+  height: 100dvh;              /* 新瀏覽器用 dvh，手機網址列伸縮時也剛好一個螢幕高 */
+  display: flex;               /* 以下三行：讓文字在頁面正中間 */
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  color: #fff;
+  font-size: 48px;             /* 標題字的大小，可以自己改 */
+  font-weight: bold;
+  text-align: center;
+  position: relative;
+}
+.page small {
+  font-size: 18px;             /* 小字說明的大小，可以自己改 */
+  font-weight: normal;
+  opacity: .85;
+  margin-top: 12px;
+}
+
+/* 各頁的顏色（色碼可以自己換） */
+#p1 { background: #e76f51; }   /* 第 1 頁：橘紅色 */
+#p2 { background: #2a9d8f; }   /* 第 2 頁：青綠色 */
+#p4 { background: #457b9d; }   /* 第 4 頁：藍色 */
+#p5 { background: #6d597a; }   /* 第 5 頁：紫色 */
+
+/* 第 3 頁：長頁，高度是 3 個螢幕高（300vh） */
+#p3 {
+  height: 300vh;
+  height: 300dvh;
+  justify-content: flex-start; /* 文字從上面開始排 */
+  /* 由上到下的漸層：黃 → 粉紅 → 紫 → 深藍，滾動時顏色一直變，就看得出在移動 */
+  background: linear-gradient(to bottom, #f9c74f 0%, #f9844a 30%, #c44569 60%, #3d348b 100%);
+}
+
+/* 第 3 頁裡的位置標記（0%、25%……），幫助看出自己滑到哪裡 */
+.mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  font-size: 28px;
+  opacity: .9;
+}
+
+/* 彈跳動畫：碰到「底部」時，畫面往上彈一下再回來 */
+@keyframes bounceBottom {
+  0%   { transform: translateY(0); }
+  35%  { transform: translateY(-40px); }  /* -40px = 往上彈 40 像素，數字越大彈越高 */
+  70%  { transform: translateY(8px); }
+  100% { transform: translateY(0); }
+}
+/* 彈跳動畫：碰到「頂部」時，畫面往下彈一下再回來 */
+@keyframes bounceTop {
+  0%   { transform: translateY(0); }
+  35%  { transform: translateY(40px); }
+  70%  { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+/* 0.45s = 彈跳花的時間（秒），要跟下面 JavaScript 的 BOUNCE_TIME 一致 */
+.bounce-bottom { animation: bounceBottom .45s ease-out; }
+.bounce-top    { animation: bounceTop    .45s ease-out; }
+
+/* 圓形箭頭提示（長頁到頭或到底時出現） */
+#hint {
+  position: fixed;
+  left: 50%;
+  bottom: 30px;                /* 離畫面底部 30 像素 */
+  width: 60px;                 /* 圓的大小 */
+  height: 60px;
+  margin-left: -30px;          /* 寬度的一半，讓圓剛好置中 */
+  border-radius: 50%;          /* 50% = 變成正圓形 */
+  background: rgba(255,255,255,.9);
+  color: #333;
+  font-size: 30px;
+  line-height: 60px;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  cursor: pointer;
+  opacity: 0;                  /* 平常看不見 */
+  pointer-events: none;        /* 看不見時不能點 */
+  transition: opacity .3s;     /* 淡入淡出花 0.3 秒 */
+  z-index: 10;
+  user-select: none;
+}
+#hint.top { top: 30px; bottom: auto; }  /* 箭頭朝上時，放在畫面上方 */
+#hint.show {
+  opacity: 1;
+  pointer-events: auto;
+  animation: pulse 1.2s ease-in-out infinite;  /* 輕輕一縮一放，吸引注意 */
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ============================================================
+     HTML：負責「有哪些東西」
+     ============================================================ -->
+<div id="bouncer">
+  <div id="track">
+    <div class="page" id="p1">第 1 頁<small>輕輕往下滑，或按 ↓ 鍵</small></div>
+    <div class="page" id="p2">第 2 頁<small>一次只會跳一頁</small></div>
+    <div class="page" id="p3">
+      <div class="mark" style="top:8%">第 3 頁（長頁）<br><small>這裡改成平滑捲動，跟著你的手移動</small></div>
+      <div class="mark" style="top:25%">── 25% ──</div>
+      <div class="mark" style="top:50%">── 50% ──</div>
+      <div class="mark" style="top:75%">── 75% ──</div>
+      <div class="mark" style="top:92%">長頁到底了<br><small>再滑一次或點箭頭，前往第 4 頁</small></div>
+    </div>
+    <div class="page" id="p4">第 4 頁<small>往上滑會回到長頁的底部</small></div>
+    <div class="page" id="p5">第 5 頁<small>最後一頁，再往下滑會彈一下</small></div>
+  </div>
+</div>
+
+<!-- 圓形箭頭，放在 #bouncer 外面，彈跳時它才不會跟著亂跑 -->
+<div id="hint">↓</div>
+
+<script>
+/* ============================================================
+   JavaScript（jQuery）：負責「怎麼動」
+   $(function(){ ... }) 的意思是：等網頁載入完成後，才開始執行裡面的程式
+   ============================================================ */
+$(function () {
+
+  /* ---------- 可以自己調整的數字 ---------- */
+  var SNAP_TIME      = 500;  // 跳一整頁的動畫時間（毫秒，1000 = 1 秒）。越小跳越快
+  var BOUNCE_TIME    = 450;  // 彈跳動畫的時間（毫秒），要跟 CSS 的 .45s 一樣
+  var WHEEL_GAP      = 160;  // 滑鼠滾輪/觸控板停多久（毫秒）才算「新的一次滑動」
+  var WHEEL_TRIGGER  = 12;   // 滾輪/觸控板要滑多少距離才跳頁。越小越靈敏
+  var TOUCH_TRIGGER  = 30;   // 手機上手指要滑多少像素才跳頁。越小越靈敏
+  var KEY_STEP_RATIO = 0.1;  // 長頁按一下方向鍵移動的距離 = 長頁高度 × 0.1（也就是 10%）
+  var SMOOTH         = 0.25; // 長頁捲動的「順滑度」（0~1）。越小越柔順但越慢跟上
+  var FRICTION       = 0.95; // 手機放開手指後「滑行」的阻力（0~1）。越接近 1 滑越遠
+  var LONG           = 2;    // 哪一頁是長頁（從 0 開始數，所以 2 = 第 3 頁）
+
+  /* ---------- 抓出網頁上的東西 ---------- */
+  var $pages   = $('.page');
+  var $track   = $('#track');
+  var $bouncer = $('#bouncer');
+  var $hint    = $('#hint');
+
+  /* ---------- 程式用來記住目前狀態的變數 ---------- */
+  var tops      = [];     // 每一頁的頂端在第幾像素
+  var cur       = 0;      // 目前在第幾頁（0 = 第 1 頁）
+  var pos       = 0;      // 畫面「現在」實際的位置
+  var target    = 0;      // 畫面「想要」移動到的位置（pos 會慢慢追上 target，就是平滑效果）
+  var vel       = 0;      // 手機放開手指後的滑行速度
+  var animating = false;  // 是否正在跳頁動畫中
+  var lockUntil = 0;      // 彈跳時暫時鎖住，到這個時間才解鎖
+  var dragging  = false;  // 手指是否正壓著長頁在拖
+  var hintDir   = 0;      // 箭頭目前的方向：1 = ↓，-1 = ↑，0 = 沒顯示
+
+  // 以下用來判斷「這是不是同一次滑動」
+  var consumed   = false; // 這一次滑動是否已經用掉了（跳過頁或撞到邊）
+  var consumedAt = 0;     // 用掉的時間點
+  var lastTime   = 0, lastAbs = 0, lastDir = 0, acc = 0;
+  var startedAtTop = false, startedAtBottom = false; // 這次滑動開始時，是否已經在長頁頂/底
+
+  /* ---------- 小工具 ---------- */
+  function now() { return Date.now(); }            // 取得現在時間（毫秒）
+  function vh()  { return window.innerHeight; }     // 螢幕可見高度
+
+  // 量出每一頁的頂端位置
+  function measure() {
+    tops = [];
+    $pages.each(function () { tops.push(this.offsetTop); });
+  }
+  // 長頁可以捲動的最上面、最下面位置
+  function longMin() { return tops[LONG]; }
+  function longMax() { return tops[LONG] + $pages.eq(LONG).outerHeight() - vh(); }
+  // 是否在長頁的頂端 / 底端
+  function atTop()    { return cur === LONG && target <= longMin() + 1; }
+  function atBottom() { return cur === LONG && target >= longMax() - 1; }
+  // 是否被鎖住（跳頁中或彈跳中），鎖住時不理會任何滑動
+  function locked()   { return animating || now() < lockUntil; }
+
+  // 把畫面真的移動到 pos 的位置
+  function render() {
+    $track.css('transform', 'translate3d(0,' + (-pos) + 'px,0)');
+  }
+
+  /* ---------- 整個畫面彈跳一下 ---------- */
+  // dir = 1 表示撞到底部，dir = -1 表示撞到頂部
+  function bounce(dir) {
+    $bouncer.removeClass('bounce-top bounce-bottom');
+    void $bouncer[0].offsetWidth;   // 小技巧：讓動畫可以重新播放
+    $bouncer.addClass(dir > 0 ? 'bounce-bottom' : 'bounce-top');
+    lockUntil = now() + BOUNCE_TIME; // 彈跳期間暫時不接受滑動
+    setTimeout(function () { $bouncer.removeClass('bounce-top bounce-bottom'); }, BOUNCE_TIME);
+  }
+
+  /* ---------- 顯示 / 隱藏圓形箭頭 ---------- */
+  function showHint(dir) {
+    hintDir = dir;
+    $hint.text(dir > 0 ? '↓' : '↑')
+         .toggleClass('top', dir < 0)
+         .addClass('show');
+  }
+  function hideHint() {
+    hintDir = 0;
+    $hint.removeClass('show');
+  }
+
+  /* ---------- 長頁捲到頭或尾的時候 ---------- */
+  function hitEdge(dir) {
+    consumed = true;        // 這一次滑動到此為止，不會直接衝到下一頁
+    consumedAt = now();
+    vel = 0;                // 停止滑行
+    bounce(dir);            // 彈一下
+    showHint(dir);          // 顯示箭頭
+  }
+
+  /* ---------- 跳到第 i 頁（有動畫） ---------- */
+  // dir = -1 代表是從下面往上跳過來的
+  function goTo(i, dir) {
+    // 如果是從第 4 頁往上回到長頁，就停在長頁的「底部」，比較自然
+    var dest = (i === LONG && dir < 0) ? longMax() : tops[i];
+    animating = true;
+    vel = 0;
+    hideHint();
+    // 用 jQuery 的 animate 讓數字從 pos 慢慢變成 dest，每變一點就移動一次畫面
+    $({ y: pos }).animate({ y: dest }, {
+      duration: SNAP_TIME,
+      easing: 'swing',      // 先慢、中間快、最後慢的動畫節奏
+      step: function (v) { pos = v; render(); },
+      complete: function () {
+        pos = target = dest;
+        cur = i;
+        animating = false;
+        render();
+      }
+    });
+  }
+
+  /* ---------- 往上一頁或下一頁 ---------- */
+  // dir = 1 往下，dir = -1 往上
+  function navigate(dir) {
+    var next = cur + dir;
+    if (next < 0 || next >= $pages.length) {
+      bounce(dir);          // 第 1 頁再往上、第 5 頁再往下：只彈一下，表示到底了
+      return;
+    }
+    goTo(next, dir);
+  }
+
+  /* ---------- 在長頁裡面移動一段距離 d ---------- */
+  function scrollLong(d) {
+    var nt = target + d;
+    if (nt >= longMax())      { target = longMax(); hitEdge(1);  }  // 撞到底
+    else if (nt <= longMin()) { target = longMin(); hitEdge(-1); }  // 撞到頂
+    else                      { target = nt; }
+  }
+
+  /* ---------- 一直重複執行的動畫迴圈（每秒約 60 次） ---------- */
+  function loop() {
+    if (!animating) {
+      // 手機放開手指後的「滑行」
+      if (cur === LONG && vel !== 0 && !dragging) {
+        target += vel;
+        vel *= FRICTION;                     // 每次都慢一點點
+        if (Math.abs(vel) < 0.3) vel = 0;     // 夠慢就停
+        if (target >= longMax())      { target = longMax(); hitEdge(1);  }
+        else if (target <= longMin()) { target = longMin(); hitEdge(-1); }
+      }
+      if (dragging) {
+        pos = target;                        // 手指壓著時，畫面完全跟著手指
+      } else {
+        pos += (target - pos) * SMOOTH;      // 否則 pos 慢慢追上 target → 平滑感
+        if (Math.abs(target - pos) < 0.5) pos = target;
+      }
+      render();
+      // 離開長頁的頭/尾後，箭頭自動消失
+      if ((hintDir === 1 && !atBottom()) || (hintDir === -1 && !atTop())) hideHint();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  /* ============================================================
+     ① 滑鼠滾輪 / 筆電觸控板
+     （這裡用 addEventListener 而不是 jQuery 的 .on，
+       因為要加 passive:false 才能擋住瀏覽器原本的捲動）
+     ============================================================ */
+  window.addEventListener('wheel', function (e) {
+    e.preventDefault();                       // 不要讓瀏覽器自己捲
+    var d = e.deltaY;                         // 這次滑了多少（正數 = 往下）
+    if (e.deltaMode === 1) d *= 16;           // 有些滑鼠用「行」當單位，換成像素
+    else if (e.deltaMode === 2) d *= vh();    // 有些用「頁」當單位
+    if (d === 0) return;
+
+    var t = now(), dir = d > 0 ? 1 : -1, abs = Math.abs(d);
+
+    // 判斷是不是「新的一次滑動」：
+    // (1) 停了一下才又滑  (2) 方向改變  (3) 力道突然變大很多（使用者又滑了一次）
+    var isNew = (t - lastTime > WHEEL_GAP) || (dir !== lastDir) ||
+                (abs > lastAbs * 2 && abs > 20 && t - consumedAt > 300);
+    lastTime = t; lastDir = dir; lastAbs = abs;
+
+    if (locked()) { consumed = true; return; } // 動畫中：這次滑動全部忽略
+
+    if (isNew) {
+      consumed = false; acc = 0;
+      startedAtTop = atTop(); startedAtBottom = atBottom();
+    }
+    if (consumed) return;                     // 這次滑動已經用過了（防止一次跳兩頁）
+
+    // 一般頁面，或長頁已經停在頭/尾又往同方向滑 → 跳頁
+    if (cur !== LONG || (dir > 0 && startedAtBottom) || (dir < 0 && startedAtTop)) {
+      acc += d;
+      if (Math.abs(acc) >= WHEEL_TRIGGER) {
+        consumed = true; consumedAt = t;
+        navigate(dir);
+      }
+      return;
+    }
+    // 長頁裡：滑多少就移動多少（滑得快就滾得快）
+    vel = 0;
+    scrollLong(d);
+  }, { passive: false });
+
+  /* ============================================================
+     ② 手機、平板的手指滑動
+     ============================================================ */
+  var tStartY = 0, tStartPos = 0, tLastY = 0, tLastT = 0, touchVel = 0;
+
+  // 手指放上去
+  window.addEventListener('touchstart', function (e) {
+    if (e.touches.length > 1) return;         // 兩根手指以上不處理
+    tStartY = tLastY = e.touches[0].clientY;  // 記住手指一開始的位置
+    tLastT = now();
+    tStartPos = target;
+    vel = 0; touchVel = 0;
+    dragging = false;
+    consumed = locked();                      // 動畫中放上手指，這次就不算
+    startedAtTop = atTop(); startedAtBottom = atBottom();
+  }, { passive: false });
+
+  // 手指移動
+  window.addEventListener('touchmove', function (e) {
+    e.preventDefault();                       // 不要讓瀏覽器自己捲
+    if (consumed || locked()) return;
+    var y = e.touches[0].clientY, t = now();
+    var dy = tStartY - y;                     // 手指往上推 = 正數 = 畫面往下走
+    var dir = dy > 0 ? 1 : -1;
+
+    // 一般頁面，或長頁已在頭/尾又往同方向滑 → 滑超過 TOUCH_TRIGGER 就跳頁
+    if (cur !== LONG || (dy > 0 && startedAtBottom) || (dy < 0 && startedAtTop)) {
+      if (Math.abs(dy) >= TOUCH_TRIGGER) {
+        consumed = true;
+        navigate(dir);
+      }
+      return;
+    }
+
+    // 長頁：畫面跟著手指走
+    dragging = true;
+    var dt = t - tLastT;
+    if (dt > 0) touchVel = (tLastY - y) / dt * 16.7;  // 算出手指速度（像素/每格畫面）
+    tLastY = y; tLastT = t;
+
+    var nt = tStartPos + dy;
+    if (nt >= longMax())      { target = pos = longMax(); dragging = false; hitEdge(1);  return; }
+    if (nt <= longMin())      { target = pos = longMin(); dragging = false; hitEdge(-1); return; }
+    target = nt;
+  }, { passive: false });
+
+  // 手指離開
+  window.addEventListener('touchend', function () {
+    if (dragging) {
+      dragging = false;
+      // 如果手指停住一下才放開，就不要滑行；否則依照速度繼續滑一段
+      vel = (now() - tLastT > 100 || consumed) ? 0 : touchVel;
+    }
+  });
+
+  /* ============================================================
+     ③ 鍵盤上下方向鍵
+     ============================================================ */
+  $(document).on('keydown', function (e) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    if (locked()) return;
+    var dir = e.key === 'ArrowDown' ? 1 : -1;
+
+    // 一般頁面：跳一頁（按住不放不會連續一直跳）
+    if (cur !== LONG) {
+      if (!e.repeat) navigate(dir);
+      return;
+    }
+    // 長頁已在頭/尾，再按一次同方向 → 跳頁
+    if ((dir > 0 && atBottom()) || (dir < 0 && atTop())) {
+      if (!e.repeat) navigate(dir);
+      return;
+    }
+    // 長頁裡：每按一下移動一小段（有平滑動畫）
+    vel = 0;
+    scrollLong(dir * $pages.eq(LONG).outerHeight() * KEY_STEP_RATIO);
+  });
+
+  /* ---------- 點圓形箭頭 → 跳到下一頁 / 上一頁 ---------- */
+  $hint.on('click', function () {
+    if (hintDir !== 0 && !locked()) navigate(hintDir);
+  });
+
+  /* ---------- 視窗大小改變（例如手機轉橫向）時重新計算 ---------- */
+  $(window).on('resize', function () {
+    measure();
+    if (cur === LONG) {
+      target = pos = Math.min(Math.max(target, longMin()), longMax());
+    } else {
+      target = pos = tops[cur];
+    }
+    render();
+  });
+
+  /* ---------- 開始！ ---------- */
+  measure();
+  render();
+  loop();
+});
+</script>
+</body>
+</html>
