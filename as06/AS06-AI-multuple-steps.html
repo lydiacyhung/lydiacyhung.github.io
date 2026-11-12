@@ -46,6 +46,8 @@
       font-size: 32px;
       border-radius: 50%;        /* 50% = 變成圓形 */
       background: rgba(0, 0, 0, 0.3);          /* 半透明的黑色圓底（在亮色、暗色背景上都看得清楚） */
+      border: 2px solid white;                 /* 白色外框：在深色背景上圓圈也看得清楚 */
+      box-sizing: border-box;                  /* 外框算在 60px 裡面，圓圈大小不變 */
       display: none;             /* 平常先藏起來，撞到長頁頭尾時才由 jQuery 叫出來 */
     }
     #arrowUp   { top: 30px; }    /* 往上的箭頭：放在長頁最上面 */
@@ -466,6 +468,60 @@
 
       requestAnimationFrame(glide);      // 下一格畫面再執行一次自己
     }
+
+
+    /* ==================== 電腦：鍵盤的上下鍵 ==================== */
+
+    // 每按下一個按鍵，都會執行這裡
+    $(window).on('keydown', function (event) {
+
+      // 只處理「下」和「上」兩個方向鍵，其他按鍵不管
+      if (event.key != 'ArrowDown' && event.key != 'ArrowUp') {
+        return;
+      }
+
+      event.preventDefault();          // 取消瀏覽器原本「按方向鍵捲一小段」的動作
+
+      if (isLocked) { return; }        // 上鎖中（動畫或彈跳播放中）：忽略
+
+      var direction = 1;                               // 下鍵 = 往下
+      if (event.key == 'ArrowUp') { direction = -1; }  // 上鍵 = 往上
+
+      // 不在長頁裡（或已經在長頁的頭／尾）→ 跟滑動一樣：跳一頁，沒有頁可跳就彈跳
+      if (!canFreeScroll(direction)) {
+        jumpOnePage(direction);
+        return;
+      }
+
+      // ---- 以下是在長頁裡：每按一下，移動「長頁高度的 1/3」 ----
+      // （想改成別的距離，就改下面這行最後的 3，例如 / 6 = 每次移動 1/6）
+      var longHeight = longEnd - longStart + $(window).height();   // 這個長頁的總高度
+      var step = longHeight / 3;
+
+      var target = $(window).scrollTop() + direction * step;      // 這一下要移動到哪裡
+
+      // 如果會超出長頁 → 只移動到長頁的頭或尾，並記下「到邊了」
+      var hitEdge = false;
+      if (target >= longEnd)   { target = longEnd;   hitEdge = true; }
+      if (target <= longStart) { target = longStart; hitEdge = true; }
+
+      // 記住這個長頁要不要有效果、箭頭要用哪一個（給動畫播完後使用）
+      var hasEffect = longHasEffect;
+      var arrow = '#arrowDown';
+      if (direction == -1) { arrow = '#arrowUp'; }
+
+      // 用 0.4 秒的動畫移動過去；
+      // .promise().done(...) = 「動畫全部播完之後」才執行裡面的程式
+      isLocked = true;
+      $('html, body').animate({ scrollTop: target }, 400).promise().done(function () {
+        isLocked = false;
+        // 到了長頁的頭或尾 → 彈一下、顯示箭頭（再按一下才會跳到下一頁）
+        if (hitEdge && hasEffect) {
+          bounce(direction);
+          showArrow(arrow);
+        }
+      });
+    });
 
 
     /* ==================== 保險：絕對不卡在兩頁中間 ==================== */
